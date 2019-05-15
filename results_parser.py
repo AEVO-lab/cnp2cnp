@@ -1,0 +1,39 @@
+import random
+import sys
+import argparse
+import os
+from subprocess import Popen, PIPE
+from shutil import copyfile
+from genomesimulator import GenomeSimulator
+import math
+
+
+
+indir = "results_nosim"
+
+for fname in os.listdir(indir):
+	if fname.endswith(".csv"):
+		ff = open(indir + "/" + fname)
+		nb = 0
+		ttl_us = 0
+		ttl_us_flat = 0
+		ttl_euc = 0
+		for line in ff:
+			line = line.replace("\n", "")
+			if line != "":
+				nb += 1
+				if nb > 1:
+					pz = line.split(",")
+					us = float(pz[5])
+					us_flat = float(pz[6])
+					euc = float(pz[7])
+					ttl_us += us
+					ttl_us_flat += us_flat
+					ttl_euc += euc
+		
+		avg_us = ttl_us/float(nb)
+		avg_us_flat = ttl_us_flat/float(nb)
+		avg_euc = ttl_euc/float(nb)
+		print(fname + "," + str(avg_us) + "," + str(avg_us_flat) + "," + str(avg_euc))
+			
+			

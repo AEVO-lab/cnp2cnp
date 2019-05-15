@@ -1,0 +1,52 @@
+The python programs provided here were tested with python 2.7.12 and python 3.5.2.
+Provided python is installed, there are no special library dependencies.
+
+
+The main program is cnp2cnp.py.  It takes a CNP fasta file as input and it can either
+
+- compute the distance between two CNPs (by default, or use argument "-m dist"),
+- compute the distance matrix between two CNPs (use argument "-m matrix").
+
+Example executions:
+> python cnp2cnp.py -m dist -i examples/cnp_pair.fa
+> python cnp2cnp.py -m matrix -i examples/cnps.fa -o examples/cnps.phy
+
+See
+> python cnp2cnp.py --help 
+for details
+
+Four distances can be computed (see Cordonnier and Lafond for details):
+- any: with unrestricted movement at unit cost, uses the improved approximation algorithm (by default, or use "-d any")
+- dbl: same algorithm as any, but prevents amplifications that would more than double a position count (use "-d dbl")
+- flat: counts the number of flat intervals (use "-d flat")
+- euclidean: counts the square root of the sum of differences squares (use "-d euclidean")
+
+
+
+In mode "dist", the expected input file is in fasta format and has 2 CNPs.
+Example of fasta file: 
+> my_first_cnp
+1,2,0,3,2,1
+> my_second_cnp
+1,2,3,0,1,1
+
+The positions with a 0 in the first CNP will be removed.
+The computed distance will be written to stdout.
+
+
+
+
+In mode "matrix", a distance matrix is computed between all pairs of sequences in a given fasta file (see above for format).
+In case of "any", "dbl" or "flat" distances, the distance is not symmetric, but the output matrx is symmetric.  
+The program will compute d(u, v) if u is before v in the fasta file, or d(v, u) otherwise.
+The output is written to a phylip file, destined to be used by the "phylip neighbor" program.
+
+
+
+
+
+
+
+The program cnp_simulator.py was used to simulate our trees and evaluate them.  
+It is less well-documented but the code should be clean enough for usage by any programmer.
+
