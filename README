@@ -24,6 +24,7 @@ Four distances can be computed (see [Cordonnier & Lafond] for details):
 
 
 In mode "dist", the expected input file is in fasta format and has 2 CNPs.
+The copy-numbers must be non-negative integers and are comma separated.
 Example of fasta file: 
 > my_first_cnp
 1,2,0,3,2,1
