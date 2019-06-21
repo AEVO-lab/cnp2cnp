@@ -55,6 +55,9 @@ class CNPSolver:
 		vp = []
 		cnt_zerodiff = 0
 
+		up.append(1)
+		vp.append(1)	#does not change the distance, but prevents extreme zeros
+
 		for i in range(len(u)):
 			if u[i] > 0:
 				up.append(u[i])
@@ -62,7 +65,64 @@ class CNPSolver:
 			elif u[i] == 0 and v[i] != 0:
 				cnt_zerodiff += 1
 
+		up.append(1)
+		vp.append(1)	#does not change the distance, but prevents extreme zeros
 		return [up, vp, cnt_zerodiff]
+
+
+	@staticmethod
+	def get_ZZS_distance(src, dest):
+		N = 0
+		for i in range(len(src)):
+			if src[i] > N:
+				N = src[i]
+			if dest[i] > N:
+				N = dest[i]
+
+		M = []	#dimensions are number of positions x N
+		for i in range(len(src)):
+			if dest[i] != 0:
+				subarr = [0] * (N + 1)
+				
+				for d in range(N + 1):
+					if d >= src[i]:
+						subarr[d] = 99999
+					elif d < src[i] - dest[i]:
+						subarr[d] = 99999
+					elif i == 0:
+						subarr[d] = d - (src[i] - dest[i])
+					else:
+						#main recurrence
+						
+						#prev position is closest non-zero to the left
+						prev = 1
+						for k in range(i):
+							if dest[k] > 0:
+								prev = k
+						curmin = 99999
+						for dp in range(N + 1):
+							aid = d - (src[i] - dest[i])
+							aprev = dp - (src[prev] - dest[prev])
+							sum = M[prev][dp] + max(d - dp, 0) + max(aid - aprev, 0)
+							
+							q = 0
+							for j in range(prev + 1, i):
+								if dest[j] == 0 and src[j] > q:
+									q = src[j]
+							sum += max(q - max(d, dp), 0)
+							if sum < curmin:
+								curmin = sum
+						subarr[d] = curmin
+				M.append(subarr)
+			else:
+				M.append([])
+	
+		mincost = 99999
+		for d in range(N + 1):
+			if M[len(src) - 1][d] < mincost:
+				mincost = M[len(src) - 1][d]
+
+		return mincost
 
 	@staticmethod
 	def read_fasta_cnp_file(filename, single_digit_mode = False):
@@ -84,10 +144,11 @@ class CNPSolver:
 				for val in sz:
 					cnp.append(int(val))
 				cnps.append(cnp)
+
 		return [lst, cnps]
 
 	@staticmethod
-	def get_distance_matrix(cnps, flats = False, use_dbl = False):
+	def get_distance_matrix(cnps, flats = False, use_dbl = False, zzs = False):
 		#init
 		the_matrix = []
 		for i in range(len(cnps)):
@@ -102,7 +163,11 @@ class CNPSolver:
 				v = tmp[1]
 				cntz = tmp[2]
 
-				if not flats:
+				if zzs:
+				    score = CNPSolver.get_ZZS_distance(u, v)
+				    the_matrix[i][j] = score		
+				    the_matrix[j][i] = score
+				elif not flats:
 				    evs = CNPSolver.get_approximate_events(u, v, use_dbl)
 				    the_matrix[i][j] = len(evs) #+ cntz
 				    the_matrix[j][i] = len(evs) #+ cntz

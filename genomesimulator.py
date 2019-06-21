@@ -47,7 +47,7 @@ class GenomeSimulator:
 
 		source = list(source_p)  #copy because we modify
 
-		#coint determines dup or loss
+		#coin determines dup or loss
 		coin = random.random()
 
 		
@@ -110,7 +110,25 @@ class GenomeSimulator:
 
 
 			#dups are tandem
-			dest = source[0:s] + copy + source[s:]
+			dest_tmp = source[0:s] + copy + source[s:]
+			
+			#check that nothing is above 9
+			maxgid = 0
+			for v in dest_tmp:
+				if v > maxgid:
+					maxgid = v
+			cnp = CNPSolver.get_cnp_from_genome(dest_tmp, maxgid + 1)
+			isok = True
+
+			#THIS BELOW WAS TO ACCOMODATE MEDICC, BUT NO, NOT ANYMORE
+			#for c in cnp:
+			#	if c > 4:
+			#		isok = False
+
+			if isok:
+				dest = dest_tmp
+			else:
+				dest = source
 
 		else:
 			s = int(random.random() * (len(source) - 1))
@@ -121,7 +139,6 @@ class GenomeSimulator:
 				if s == len(source):
 					done = True
 				else:
-					#todo: this might take a while
 					maxgid = 0
 					for v in source:
 						if v > maxgid:

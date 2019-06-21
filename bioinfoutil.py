@@ -26,8 +26,11 @@ class BioinfoUtil:
 		f.close()
 
 	@staticmethod
-	def get_rf_dist(treefile1, treefile2):
-		proc = subprocess.Popen(["python rfdist.py " + treefile1 + " " + treefile2], stdout=subprocess.PIPE, shell=True)
+	def get_rf_dist(treefile1, treefile2, format = None):
+		cmd = "python rfdist.py " + treefile1 + " " + treefile2
+		#if format != None:
+		#	cmd += " " + str(format)
+		proc = subprocess.Popen([cmd], stdout=subprocess.PIPE, shell=True)
 		(out, err) = proc.communicate()
 		
 		pz = out.split("/")

@@ -17,7 +17,7 @@ parser = argparse.ArgumentParser(description='Get the number of deletion and dup
 parser.add_argument('-m', "--mode", default='dist', help='Mode of execution.  Put "dist" to compute the distance between two CNPs and output it to stdout, "matrix" to get a distance matrix from CNPs in a fasta file and output it in a phylip file.')
 parser.add_argument('-i', "--infile", default='', help='Input file.  A fasta file for modes "dist" (with two CNPs) or "matrix".  CNP values must be comma separated.')
 parser.add_argument('-o', "--outfile", default='', help='Output file, or stdout if none specified.  Only valid for mode "matrix".')
-parser.add_argument('-d', "--distance", default='any', help='The distance to use.  Possible values are "any": use improved approximation from Cordonnier and Lafond, "flat": count the number of flat intervals, "dbl": use approximation for "any", but forbids counts to be above their double in a single event, "euclidean" for the euclidean distance.')
+parser.add_argument('-d', "--distance", default='any', help='The distance to use.  Possible values are "any": use improved approximation from Cordonnier and Lafond, "flat": count the number of flat intervals, "dbl": use approximation for "any", but forbids counts to be above their double in a single event, "euclidean" for the euclidean distance, "zzs" to use the Zeira-Zehavi-Shamir distance.')
 
 args = parser.parse_args()
 
@@ -67,6 +67,9 @@ if args.mode == 'dist':
 	elif args.distance == "euclidean":
 		matrix = CNPSolver.get_euclidean_distance_matrix(cnps)
 		print(matrix[0][1])
+	elif args.distance == "zzs":
+		d = CNPSolver.get_ZZS_distance(u, v)
+		print(d)
 
 elif args.mode == 'matrix':
 	'''
@@ -94,6 +97,8 @@ elif args.mode == 'matrix':
 		matrix = CNPSolver.get_distance_matrix(cnps, flats = False, use_dbl = p_use_dbl)
 	elif args.distance == "flat":
 		matrix = CNPSolver.get_distance_matrix(cnps, flats = True)
+	elif args.distance == "zzs":
+		matrix = CNPSolver.get_distance_matrix(cnps, flats = True, zzs = True)
 	elif args.distance == "euclidean":
 		matrix = CNPSolver.get_euclidean_distance_matrix(cnps)
 
