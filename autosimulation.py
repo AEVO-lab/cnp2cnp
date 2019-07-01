@@ -11,7 +11,7 @@ import math
 
 #note that this file is called autosimulation.py and not autostimulation.py
 outdir = "results_rcg"
-runs = 10
+runs = 100
 
 #medicc_param = " -q $HOME/projects/medicc/medicc/"
 
