@@ -18,6 +18,9 @@ class GenomeSimulator:
 	max_duplength = 500
 	max_losslength = 500
 
+	prob_stop = 0.05
+	prob_removelast = 0.1
+
 	def __init__(self):
 		pass
 
@@ -88,7 +91,7 @@ class GenomeSimulator:
 		#print("k = " + str(k) + " s = " + str(s) + " t = " + str(t))
 		'''
 		
-		prob_stop = 0.05
+		prob_stop = self.prob_stop
 
 		if is_dup:
 			s = int(random.random() * (len(source) - 1))
@@ -97,7 +100,7 @@ class GenomeSimulator:
 		
 
 			while not done:
-				if t == len(source):
+				if t == len(source) or t - s >= self.max_duplength::
 					done = True
 				else:
 					coin = random.random()
@@ -133,10 +136,10 @@ class GenomeSimulator:
 		else:
 			s = int(random.random() * (len(source) - 1))
 			done = False
-			prob_removelast = 0.1
+			prob_removelast = self.prob_removelast
 
 			while not done:
-				if s == len(source):
+				if s == len(source) or delcount >= self.max_losslength::
 					done = True
 				else:
 					maxgid = 0
@@ -157,6 +160,7 @@ class GenomeSimulator:
 								done = True
 						else:
 							del source[s]
+							delcount += 1
 				
 
 			dest = source

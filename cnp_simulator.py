@@ -25,6 +25,7 @@ parser.add_argument('-w', "--workdir", default='work', help='Work dir for temp f
 parser.add_argument('-r', "--nbruns", default='100', help='number of runs (of trees to simulate)')
 parser.add_argument('-e', "--nbevents", default='10:20', help='min:max of eventson a tree branch (format is a:b)')
 parser.add_argument('-p', "--probdup", default='0.75', help='probability of duplication (beware, <.7 tends to remove every gene eventually)')
+parser.add_argument('-x', "--errorrate", default='0', help='.  0 = no error is introduced.')
 
 parser.add_argument('-q', "--mediccdir", default='', help='directory that contains medicc.py')
 
