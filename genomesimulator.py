@@ -5,6 +5,7 @@ import os
 from subprocess import Popen, PIPE
 from shutil import copyfile
 import math
+import numpy
 
 import node
 from cnpsolver import CNPSolver
@@ -100,7 +101,7 @@ class GenomeSimulator:
 		
 
 			while not done:
-				if t == len(source) or t - s >= self.max_duplength::
+				if t == len(source) or t - s >= self.max_duplength:
 					done = True
 				else:
 					coin = random.random()
@@ -137,9 +138,10 @@ class GenomeSimulator:
 			s = int(random.random() * (len(source) - 1))
 			done = False
 			prob_removelast = self.prob_removelast
+			delcount = 0
 
 			while not done:
-				if s == len(source) or delcount >= self.max_losslength::
+				if s == len(source) or delcount >= self.max_losslength:
 					done = True
 				else:
 					maxgid = 0
@@ -154,8 +156,10 @@ class GenomeSimulator:
 						cnt = cnp[source[s]]
 						if cnt == 1:	#if we are about to remove the last guy
 							coin = random.random()
+							#print(str(coin) + "   vs   " + str(prob_removelast))
 							if float(coin) <= float(prob_removelast):
 								del source[s]
+								delcount += 1
 							else:
 								done = True
 						else:
@@ -174,5 +178,10 @@ class GenomeSimulator:
 
 		for c in tree.children:
 			nbevents = min_events + int(random.random() * (max_events - min_events))
+			r = numpy.random.normal(1, 1)
+			nbevents = int(max(1, round(nbevents * r)))
+			
+
+
 			dest = self.simulate_events(root_genome, nbevents)
 			self.simulate_tree_evolution(c, dest, min_events, max_events)

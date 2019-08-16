@@ -2,6 +2,7 @@ import random
 import sys
 import argparse
 import os
+import os.path
 from subprocess import Popen, PIPE
 from shutil import copyfile
 import subprocess
@@ -38,16 +39,22 @@ class BioinfoUtil:
 
 
 	@staticmethod
-	def run_phylip_nj(distfile, outfile):
+	def run_phylip_nj(distfile, outfile, workdir = ''):
 
-		if os.path.exists("infile"):
-  			os.remove("infile")
-		if os.path.exists("outfile"):
-  			os.remove("outfile")
-		if os.path.exists("outtree"):
-  			os.remove("outtree")
+				
+		if os.path.exists(os.path.join(workdir, "infile")):
+  			os.remove(os.path.join(workdir, "infile"))
+		if os.path.exists(os.path.join(workdir, "outfile")):
+  			os.remove(os.path.join(workdir, "outfile"))
+		if os.path.exists(os.path.join(workdir, "outtree")):
+  			os.remove(os.path.join(workdir, "outtree"))
 
-		copyfile(distfile, "infile")
+		copyfile(distfile, os.path.join(workdir, "infile"))
+
+		oldcwd = os.getcwd()
+		
+		os.chdir(workdir)
+		
 
 		pr = Popen(['phylip', 'neighbor'], stdout=PIPE, stderr=PIPE, stdin=PIPE)
 
@@ -55,7 +62,8 @@ class BioinfoUtil:
 
 		pr.wait()
 
-		copyfile("outtree", outfile)
+		os.chdir(oldcwd)
+		copyfile(os.path.join(workdir, "outtree"), outfile)
 
 		#pr.stdin.write(distfile + "\n")
 

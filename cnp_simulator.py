@@ -9,6 +9,8 @@ from shutil import rmtree
 import math
 import ntpath
 
+import numpy
+
 from node import Node
 from cnpsolver import CNPSolver
 from genomesimulator import GenomeSimulator
@@ -24,10 +26,13 @@ parser.add_argument('-g', "--nbgenes", default='10', help='number of genes')
 parser.add_argument('-w', "--workdir", default='work', help='Work dir for temp files in mode infer_tree_medicc')
 parser.add_argument('-r', "--nbruns", default='100', help='number of runs (of trees to simulate)')
 parser.add_argument('-e', "--nbevents", default='10:20', help='min:max of eventson a tree branch (format is a:b)')
-parser.add_argument('-p', "--probdup", default='0.75', help='probability of duplication (beware, <.7 tends to remove every gene eventually)')
-parser.add_argument('-x', "--errorrate", default='0', help='.  0 = no error is introduced.')
+parser.add_argument('-p', "--probdup", default='0.75', help='probability of duplication')
+parser.add_argument('-s', "--probstop", default='0.05', help='When determining the length of an event, we start with an initial substing, then extend it with prob stopprob until the process ends.')
+parser.add_argument('-l', "--probloss", default='0.1', help='Probability that a loss is extended if it kills off the last copy of a gene.')
+parser.add_argument('-x', "--errorrate", default='0.1', help='Introduces random perturbation of CNPs.  Each position is altered with probability errorrate.')
+parser.add_argument('-z', "--dontdoerror", default='0', help='Debug parameter.  Set to 1 to ignore error computation')
 
-parser.add_argument('-q', "--mediccdir", default='', help='directory that contains medicc.py')
+#parser.add_argument('-q', "--mediccdir", default='', help='directory that contains medicc.py')
 
 args = parser.parse_args()
 
@@ -151,7 +156,8 @@ if args.mode == 'infer_tree' or args.mode == 'infer_tree_euclidean' or args.mode
 
 	distfile = args.outfile + ".dist"
 	BioinfoUtil.write_matrix_to_phylip(distfile, names, matrix)
-	BioinfoUtil.run_phylip_nj(distfile, args.outfile)
+	cwd = os.path.dirname(args.outfile)	
+	BioinfoUtil.run_phylip_nj(distfile, args.outfile, cwd)
 
 
 
@@ -164,11 +170,17 @@ if args.mode == 'simulate_trees':
 	if args.outfile != "":
 		fout = open(args.outfile, 'w')
 
-	line = "TREE,RF_HEUR,RF_FLAT,RF_EUCLID,RF_ZZS,MAXRF,NORMRF_HEUR,NORMRF_FLAT,NORMRF_EUCLID,NORMRF_ZZS"
+	line = "TREE,RF_HEUR,RF_FLAT,RF_EUCLID,RF_ZZS,MAXRF,NORMRF_HEUR,NORMRF_FLAT,NORMRF_EUCLID,NORMRF_ZZS,ERROR_RATE"
 	print(line)
 	if args.outfile != "":
 		fout.write(line + "\n")
 
+	
+	error_rates = [0, 0.1, 0.25, 0.5, 1]
+	if args.dontdoerror == "1":
+		error_rates = [0]
+
+	debug = False
 
 	for r in range(nbruns):
 
@@ -179,49 +191,97 @@ if args.mode == 'simulate_trees':
 
 		#we do a few initial dups, as otherwise the genome tends to lose everything
 		gs.prob_dup = 1
-		source = gs.simulate_events(source, 10)
+		source = gs.simulate_events(source, 5)
 		tree = Node.get_random_binary_tree(nb_leaves)
 
 		minev = int(args.nbevents.split(":")[0])
 		maxev = int(args.nbevents.split(":")[1])
 
 
-		gs.prob_dup = args.probdup
+		gs.prob_dup = float(args.probdup)
+		gs.prob_stop = float(args.probstop)
+		gs.prob_removelast = float(args.probloss)
+		
 		
 		gs.simulate_tree_evolution(tree, source, minev, maxev)
 
 		#write CNPs in a modified fasta format: characters are counts and are comma separated
 		strfa = ""
+		strfa_error = {}
+		for err in error_rates:
+			strfa_error[str(err)] = ""
 		for n in tree.get_postorder_nodes():
 			#n.data = CNPSolver.get_cnp_from_genome(n.data, nb_genes)
 			if n.is_leaf():
 				n.id = "taxon_" + str(n.id)
 				strfa += ">" + n.id + "\n"
+				for err in error_rates:
+					strfa_error[str(err)] += ">" + n.id + "\n"
+
 
 				cnp = CNPSolver.get_cnp_from_genome(n.data, nb_genes)
 				for i in range(len(cnp)):
 					if i != 0:
 						strfa += ","
+						for err in error_rates:
+							strfa_error[str(err)] += ","
 					strfa += str(cnp[i])
+					for err in error_rates:
+						errcoin = random.random()
+						if err == 100:	#just random
+							x = int(random.random() * 30)
+							strfa_error[str(err)] += str(x)
+						elif err == 0 or errcoin > float(args.errorrate):
+							strfa_error[str(err)] += str(cnp[i])
+						
+						else:
+							errdev = float(cnp[i]) * err
+							#print(str(err) + ":" + str(errdev))
+							x = numpy.random.normal(cnp[i], errdev)
+							x = max(0, int(round(x)))
+							#print(str(cnp[i]) + " --> " + str(x))
+							strfa_error[str(err)] += str(x)
+							
+							#errmax = 3 #max(1, float(cnp[i]) * err)
+							#chooses an error in [-errmax, errmax]
+							#errcnp = int(random.random() * (2 * errmax)) - errmax
+							#print(str(cnp[i]) + " --> " + str(int(max(0, cnp[i] + errcnp))))
+							#strfa_error[str(err)] += str(int(max(0, cnp[i] + errcnp)))
+					#print("-----")
 				strfa += "\n"
+				for err in error_rates:
+					strfa_error[str(err)] += "\n"
 
+
+		#output the true fasta
 		fastafilename = outdir + "/cnps" + str(r) + ".fa"
 		fastaf = open(fastafilename, 'w')
 		fastaf.write(strfa)
 		fastaf.close()
 
+		#output the fastas with errors
+		for err in error_rates:
+			fastafilename_error = outdir + "/cnps" + str(r) + "_error" + str(err) + ".fa"
+			fastaf_error = open(fastafilename_error, 'w')
+			fastaf_error.write(strfa_error[str(err)])
+			fastaf_error.close()
+
+		#output the true tree
 		treefilename = outdir + "/tree" + str(r) + ".newick"
 		treefile = open(treefilename,'w')
 		treefile.write(tree.to_newick(False) + ";")
 		treefile.close()
 
+		#output the true tree with all the branch event details - not used, good for debugging
 		treefilename2 = outdir + "/tree" + str(r) + ".detailed.newick"
 		treefile2 = open(treefilename2,'w')
 		treefile2.write(tree.to_newick(True) + ";")
 		treefile2.close()
 
+		if debug:
+			print("ready to eval")
 
-		#we don't support medicc anymore, it doesn't work well
+		###we don't support medicc anymore, it doesn't work well
 		#test with medicc, or at least try
 		#inferredtreefilename_medicc = outdir + "/tree" + str(r) + ".inferred_medicc.newick"
 
@@ -238,49 +298,61 @@ if args.mode == 'simulate_trees':
 		#[rfdist_medicc, maxrf_medicc] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_medicc, format=1)
 
 
+		for err in error_rates:
+			fasta_infile = outdir + "/cnps" + str(r) + "_error" + str(err) + ".fa"
+			#test with our heuristic approx
+			inferredtreefilename = outdir + "/tree" + str(r) + "_error" + str(err) + ".inferred.newick"
+			cmd = "python cnp_simulator.py -m infer_tree -i " + fasta_infile + " -o " + inferredtreefilename
+			if debug:
+				print("EXEC " + cmd)
+			os.system(cmd)
+
+			[rfdist_us, maxrf_us] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename)
+
+			#test with the naive flat count
+			inferredtreefilename_flat = outdir + "/tree" + str(r) + "_error" + str(err) + ".inferred_flat.newick"
+			cmd = "python cnp_simulator.py -m infer_tree_flat -i " + fasta_infile + " -o " + inferredtreefilename_flat
+			if debug:
+				print("EXEC " + cmd)
+			os.system(cmd)
+
+			[rfdist_flat, maxrf_flat] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_flat)
+
+			#infer with euclidean distance
+			inferredtreefilename_euc = outdir + "/tree" + str(r) + "_error" + str(err) + ".inferred_euc.newick"
+			cmd = "python cnp_simulator.py -m infer_tree_euclidean -i " + fasta_infile + " -o " + inferredtreefilename_euc
+			if debug:
+				print("EXEC " + cmd)
+			os.system(cmd)
 		
-		#test with our heuristic approx
-		inferredtreefilename = outdir + "/tree" + str(r) + ".inferred.newick"
-		cmd = "python cnp_simulator.py -m infer_tree -i " + fastafilename + " -o " + inferredtreefilename
-		#print("EXEC " + cmd)
-		os.system(cmd)
-
-		[rfdist_us, maxrf_us] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename)
-
-		#test with the naive flat count
-		inferredtreefilename_flat = outdir + "/tree" + str(r) + ".inferred_flat.newick"
-		cmd = "python cnp_simulator.py -m infer_tree_flat -i " + fastafilename + " -o " + inferredtreefilename_flat
-		#print("EXEC " + cmd)
-		os.system(cmd)
-
-		[rfdist_flat, maxrf_flat] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_flat)
-
-		#infer with euclidean distance
-		inferredtreefilename_euc = outdir + "/tree" + str(r) + ".inferred_euc.newick"
-		cmd = "python cnp_simulator.py -m infer_tree_euclidean -i " + fastafilename + " -o " + inferredtreefilename_euc
-		#print("EXEC " + cmd)
-		os.system(cmd)
-		
-		[rfdist_them, maxrf_them] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_euc)
+			[rfdist_them, maxrf_them] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_euc)
 
 
-		#infer with zzs distance
-		inferredtreefilename_zzs = outdir + "/tree" + str(r) + ".inferred_zzs.newick"
-		cmd = "python cnp_simulator.py -m infer_tree_zzs -i " + fastafilename + " -o " + inferredtreefilename_zzs
-		#print("EXEC " + cmd)
-		os.system(cmd)
+			#infer with zzs distance
+			inferredtreefilename_zzs = outdir + "/tree" + str(r) + "_error" + str(err) + ".inferred_zzs.newick"
+			cmd = "python cnp_simulator.py -m infer_tree_zzs -i " + fasta_infile + " -o " + inferredtreefilename_zzs
+			if debug:
+				print("EXEC " + cmd)
+			os.system(cmd)
 
-		[rfdist_zzs, maxrf_zzs] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_zzs)
-		#print("RF=" + str(rfdist) + "/" + str(maxrf))
+			[rfdist_zzs, maxrf_zzs] = BioinfoUtil.get_rf_dist(treefilename, inferredtreefilename_zzs)
 
-		line = treefilename + "," + str(rfdist_us) + "," + str(rfdist_flat) + "," + str(rfdist_them) + "," + str(rfdist_zzs) + "," + str(maxrf_us)
-		line += "," + str(float(rfdist_us)/float(maxrf_us)) + "," + str(float(rfdist_flat)/float(maxrf_us)) + "," + str(float(rfdist_them)/float(maxrf_them)) + "," + str(float(rfdist_zzs)/float(maxrf_zzs))
 
-		print(line)
-		if args.outfile != "":
-			fout.write(line + "\n")
+			#summarize all of this in a single line
+			line = treefilename + "," + str(rfdist_us) + "," + str(rfdist_flat)
+			line += "," + str(rfdist_them) + "," + str(rfdist_zzs) + "," + str(maxrf_us)
+			line += "," + str(float(rfdist_us)/float(maxrf_us)) + "," 
+			line += str(float(rfdist_flat)/float(maxrf_us)) + "," + str(float(rfdist_them)/float(maxrf_them)) 
+			line += "," + str(float(rfdist_zzs)/float(maxrf_zzs))
 
-		os.system("rm -rf ~/.local/share/Trash/*")
+			line += "," + str(err)
+
+			print(line)
+			if args.outfile != "":
+				fout.write(line + "\n")
+
+			#emptying trash needed, since otherwise we appeared to run out of disk space with large experiments on our system
+			#os.system("rm -rf ~/.local/share/Trash/*")
 
 	if args.outfile != "":
 		fout.close()
