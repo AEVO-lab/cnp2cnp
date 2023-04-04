@@ -3,7 +3,7 @@ Provided python is installed, there are no special library dependencies.
 To run the simulations, numpy is needed.  
 
 *** If you are interested in the data files used for our simulations, they are too large for github.  They can be foud at 
-https://depot-rech.dinf.usherbrooke.ca/grif/bioinfo/cnp2cnp_data
+https://depot-rech.fsci.usherbrooke.ca/grif/bioinfo/cnp2cnp_data
 
 
 The main program is cnp2cnp.py.  It takes a CNP fasta file as input and it can either
